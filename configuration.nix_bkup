@@ -1,0 +1,675 @@
+{ config, lib, pkgs, ... }:
+
+{
+  imports = [ ./hardware-configuration.nix ];
+
+  system.autoUpgrade = {
+    enable = true;
+    allowReboot = true;          # optional
+    dates = "daily";             # or "weekly"
+    randomizedDelaySec = "30min";
+  };
+
+  # Unfree only for linux-firmware
+  nixpkgs.config.allowUnfreePredicate = pkg:
+    builtins.elem (pkgs.lib.getName pkg) [ "linux-firmware" ];
+  hardware.enableRedistributableFirmware = true;
+
+  boot.loader.systemd-boot.enable = true;
+  boot.loader.efi.canTouchEfiVariables = true;
+
+  # LUKS root
+  #boot.initrd.luks.devices."cryptroot".device = "/dev/nvme0n1p2";
+
+  boot.kernel.sysctl = {
+    "kernel.dmesg_restrict" = 1;
+    "kernel.kptr_restrict" = 2;
+    "kernel.unprivileged_bpf_disabled" = 1;
+    "kernel.yama.ptrace_scope" = 1;
+    #"kernel.modules_disabled" = 1;
+    "fs.protected_hardlinks" = 1;
+    "fs.protected_symlinks" = 1;
+    "fs.protected_fifos" = 2;
+    "fs.protected_regular" = 2;
+    "fs.suid_dumpable" = 0;
+    # IPv4
+    "net.ipv4.conf.all.accept_redirects" = 0;
+    "net.ipv4.conf.default.accept_redirects" = 0;
+    "net.ipv4.conf.all.send_redirects" = 0;
+    "net.ipv4.conf.all.log_martians" = 1;
+    "net.ipv4.conf.default.log_martians" = 1;
+    "net.ipv4.conf.all.rp_filter" = 1;
+    "net.ipv4.icmp_ignore_bogus_error_responses" = 1;
+    "net.ipv4.icmp_echo_ignore_broadcasts" = 1;
+    # IPv6
+    "net.ipv6.conf.all.accept_redirects" = 0;
+    "net.ipv6.conf.default.accept_redirects" = 0;
+    "net.ipv6.conf.all.accept_source_route" = 0;
+    "net.ipv6.conf.default.accept_source_route" = 0;
+    # Optional: lock module loading post-boot (can break DKMS/external modules)
+    # "kernel.modules_disabled" = 1;
+    "dev.tty.ldisc_autoload" = 0;
+    "net.core.bpf_jit_harden" = 2;
+    "kernel.sysrq" = 0;
+  };
+
+
+  # 1) File integrity (kills the AIDE warning)
+
+  # AIDE config
+  environment.etc."aide.conf".text = ''
+    database_in=file:/var/lib/aide/aide.db
+    database_out=file:/var/lib/aide/aide.db.new
+    gzip_dbout=yes
+    report_url=file:/var/log/aide/aide.log
+
+    # Rule set
+    NORMAL = p+i+n+u+g+s+m+c+acl+xattrs+sha512
+
+    # What to watch (keep it modest to avoid noise on NixOS)
+    /boot NORMAL
+    /etc  NORMAL
+    /home NORMAL
+
+    # What to exclude (volatile / virtual)
+    !/var/log(/.*)?$
+    !/tmp(/.*)?$
+    !/run(/.*)?$
+    !/proc(/.*)?$
+    !/sys(/.*)?$
+    !/dev(/.*)?$
+    !/nix(/.*)?$
+    '';
+
+  systemd.tmpfiles.rules = [
+    # chkrootkit
+    "d /var/log/chkrootkit 0750 root root -"
+
+    # AIDE
+    "d /var/lib/aide 0750 root root -"
+    "d /var/log/aide 0750 root root -"
+    "f /var/log/pacct 0600 root root -"
+    "d /etc/wpa_supplicant 0750 root root -"
+    "d /var/log/audit 0750 root root -"
+
+    #Lynis compatibility: create a classic path it recognizes
+    #(no behavioral impact; your passwd stack references the absolute path above)
+    "d /usr/lib/security 0755 root root -"
+    "d /lib/security      0755 root root -"
+    "d /lib64/security    0755 root root -"
+    "L /usr/lib/security/pam_passwdqc.so  - - - - ${pkgs.passwdqc}/lib/security/pam_passwdqc.so"
+    "L /lib/security/pam_passwdqc.so      - - - - ${pkgs.passwdqc}/lib/security/pam_passwdqc.so"
+    "L /lib64/security/pam_passwdqc.so    - - - - ${pkgs.passwdqc}/lib/security/pam_passwdqc.so"
+  ];
+
+  #systemd.services.wpa_supplicant.serviceConfig.ReadWritePaths = [ "/etc/wpa_supplicant" "/run" "/run/wpa_supplicant" ];
+
+  #   /* === BOOT-5264: Harden systemd units (service-by-service) ===
+  #      Rationale: Reduce exposure values from `systemd-analyze security`.
+  #      Example: harden NetworkManager (adjust to your services).
+
+  #      Verify:
+  #        systemd-analyze security NetworkManager.service
+  #        systemctl show -p ProtectSystem NetworkManager.service
+  #   */
+  # [BOOT-5264] Harden NetworkManager without breaking it
+  systemd.services.NetworkManager.serviceConfig = {
+    # Keep upstream capability set (don’t blank it; NM needs NET_ADMIN/NET_RAW at minimum)
+    # CapabilityBoundingSet = [ ];        # ← leave unset to inherit upstream
+    # AmbientCapabilities = [ ];          # ← leave unset
+
+    NoNewPrivileges = true;
+
+    # Device access: NM needs rfkill/tun, so don’t hide /dev entirely
+    PrivateDevices = false;
+
+    PrivateTmp = true;
+    ProtectControlGroups = true;
+    ProtectHostname = true;
+    ProtectKernelLogs = true;
+    ProtectKernelModules = true;
+    ProtectKernelTunables = true;
+
+    # Filesystem protection:
+    # "full" makes /usr and /etc read-only. Allow specific writes NM needs.
+    ProtectSystem = "full";
+    ReadWritePaths = [
+      "/run"
+      "/var/lib/NetworkManager"
+      "/etc/NetworkManager"
+      "/etc/resolv.conf"       # if NM manages resolv.conf on your host
+    ];
+
+    # NM needs these address families to operate
+    RestrictAddressFamilies = [
+      "AF_UNIX"
+      "AF_NETLINK"             # for rtnetlink to kernel
+      "AF_INET"
+      "AF_INET6"
+      "AF_PACKET"              # for low-level link ops/monitoring
+      #"AF_BLUETOOTH"           # keep if you use BT tethering; remove otherwise
+    ];
+
+    RestrictNamespaces = true;
+    RestrictRealtime = true;
+    RestrictSUIDSGID = true;
+    LockPersonality = true;
+    SystemCallArchitectures = "native";
+    UMask = "0077";
+
+    # SystemCallFilter can be too tight for NM; omit unless you build a tested allowlist.
+    # SystemCallFilter = [ "@system-service" ];
+  };
+
+  # [BOOT-5264] Harden wpa_supplicant without breaking Wi-Fi
+  systemd.services.wpa_supplicant.serviceConfig = {
+    NoNewPrivileges = true;
+
+    # Needs rfkill and netlink/ioctl access → don't hide /dev entirely
+    PrivateDevices = false;
+
+    PrivateTmp = true;
+    ProtectControlGroups = true;
+    ProtectHostname = true;
+    ProtectKernelLogs = true;
+    ProtectKernelModules = true;
+    ProtectKernelTunables = true;
+
+    # Read-only system; grant writes only where wpa_supplicant stores state/sockets
+    ProtectSystem = "full";
+    ReadWritePaths = [
+      "/run/wpa_supplicant"
+      "/run"                       # belt-and-suspenders
+      "/etc/wpa_supplicant"        # if you edit/rotate conf at runtime
+    ];
+
+    # Socket families it actually uses
+    RestrictAddressFamilies = [
+      "AF_UNIX"      # control sockets
+      "AF_NETLINK"   # rtnetlink to the kernel
+      "AF_INET"      # DHCP/4-way handshake interactions via NM/clients
+      "AF_INET6"
+      "AF_PACKET"    # low-level link operations/802.11
+    ];
+
+    RestrictNamespaces = true;
+    RestrictRealtime = true;
+    RestrictSUIDSGID = true;
+    LockPersonality = true;
+    SystemCallArchitectures = "native";
+    UMask = "0077";
+
+    # Leave capabilities alone (NM/system package sets what’s needed like NET_ADMIN/NET_RAW).
+    # CapabilityBoundingSet = [ ];    # ← do NOT blank this for wpa_supplicant
+    # AmbientCapabilities   = [ ];    # ← leave unset
+  };
+
+  #Package audit tool PKGS-7398
+  #environment.systemPackages = (config.environment.systemPackages or []) ++ [ pkgs.vulnix ];
+  systemd.services.vulnix-scan = {
+    description = "Weekly vulnix CVE scan";
+    serviceConfig = { Type = "oneshot"; ExecStart = "${pkgs.vulnix}/bin/vulnix || true"; };
+  };
+  systemd.timers.vulnix-scan = {
+    wantedBy = [ "timers.target" ];
+    timerConfig = { OnCalendar = "weekly"; Persistent = true; };
+};
+
+  # One-time DB initialization; run once after enabling
+  systemd.services.aide-init = {
+    description = "Initialize AIDE database";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "local-fs.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${pkgs.aide}/bin/aide --init -c /etc/aide.conf";
+    };
+  };
+
+  # Daily check (writes to /var/log/aide/aide.log)
+  systemd.services.aide-check = {
+    description = "AIDE integrity check";
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${pkgs.aide}/bin/aide --check -c /etc/aide.conf";
+    };
+  };
+
+  systemd.timers.aide-check = {
+    description = "Daily AIDE integrity check";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "daily";
+      Persistent = true;
+    };
+  };
+
+  #   /* === LOGG-2146: Log rotation present ===
+  #      Rationale: Ensure logs rotate to avoid disk fill.
+  #      Verify: `systemctl status logrotate.timer` and `journalctl --disk-usage`.
+  #   */
+  services.logrotate.enable = true;
+  services.logrotate.settings = {
+    header = { dateext = true; };
+    "/var/log/*.log" = {
+      frequency = "weekly";
+      rotate = 12;
+      weekly = true;
+      compress = true;
+      missingok = true;
+      notifempty  = true;
+      copytruncate = true;
+      create      = "0640 root root";
+    };
+  };
+  services.journald = {
+    storage = "persistent";           # Keep logs under /var/log/journal
+    extraConfig = ''
+      SystemMaxUse=1G
+      SystemMaxFileSize=100M
+    '';
+  };
+
+  # 2) Linux audit framework (logs sensitive events)
+  #   /* === ACCT-9632: auditd config discoverability ===
+  #      Rationale: Ensure audit daemon and rule set clearly defined.
+  #      Verify: `auditctl -l` and `grep -R . /etc/audit`.
+  #   */
+
+  # Enable audit daemon + rules (Lynis [ACCT-9632])
+  security.auditd.enable = true; # the userspace logger
+  # Provide the daemon config file directly
+  environment.etc."audit/auditd.conf".text = ''
+    log_file = /var/log/audit/audit.log
+    log_format = RAW
+    flush = INCREMENTAL
+    freq = 50
+  '';
+
+  security.audit = {
+    enable = true;
+    rules = [
+      # --- Identity / auth databases ---
+      "-w /etc/passwd -p wa -k identity"
+      "-w /etc/group -p wa -k identity"
+      "-w /etc/shadow -p wa -k identity"     # (avoid duplicating this elsewhere)
+
+      # --- Privilege / sudo policy (optional but useful) ---
+      "-w /etc/sudoers -p wa -k scope"
+      "-w /etc/sudoers.d/ -p wa -k scope"
+
+      # --- Logging directories ---
+      "-w /var/log/ -p wa -k logs"
+
+      # --- Time changes (helps correlate events) ---
+      "-a always,exit -F arch=b64 -S adjtimex -S settimeofday -S clock_settime -k time-change"
+      "-w /etc/localtime -p wa -k time-change"
+
+      # --- SSH & network config (optional) ---
+      "-w /etc/ssh/sshd_config -p wa -k sshd"
+
+      # --- Kernel/sysctl config (optional) ---
+      "-w /etc/sysctl.conf -p wa -k sysctl"
+      "-w /etc/sysctl.d/ -p wa -k sysctl"
+
+      # --- (Optional / heavier) track process execution for user sessions ---
+      # Use execve + execveat; limit to real users (uid>=1000) and valid login sessions (auid!=-1).
+      # This is very informative but can be noisy:
+      "-a always,exit -F arch=b64 -S execve -S execveat -F uid>=1000 -F auid!=-1 -k exec"
+      # If you might run 32-bit binaries on x86_64, add the 32-bit variant too:
+      # "-a always,exit -F arch=b32 -S execve -S execveat -F uid>=1000 -F auid!=-1 -k exec"
+    ];
+  };
+
+  # 3) Process accounting & system stats (addresses ACCT-9622 / 9626)
+  #services.acct.enable = true;        # psacct (accton, sa, lastcomm)
+  # Create the pacct file with safe perms
+
+  # Enable accounting at boot
+  systemd.services.psacct-enable = {
+    description = "Enable process accounting (accton)";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "local-fs.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${pkgs.acct}/sbin/accton /var/log/pacct";
+    };
+  };
+
+  # sysstat (sar/sa) accounting
+  services.sysstat.enable = true;     # sar/iostat/collectl-style stats
+
+  # 4) RNG service (quiet entropy warning on laptops)
+  #services.rngd.enable = true;
+
+  # Enforce strong passwords via pam_pwquality for `passwd`
+  #security.pam.services.passwd.rules = {
+  #  password = {
+  #    pwquality = {
+  #      order      = 0;                  # run first
+  #      control    = "requisite";
+  #      modulePath = "pam_pwquality.so"; # resolves via /run/current-system/sw/lib/security
+  #      args = [
+  #        "retry=3"
+  #        "minlen=12"
+  #        "ucredit=-1"  # ≥1 uppercase
+  #        "lcredit=-1"  # ≥1 lowercase
+  #        "dcredit=-1"  # ≥1 digit
+  #        "ocredit=-1"  # ≥1 symbol
+  #      ];
+  #    };
+  #  };
+  #};
+
+  # [AUTH-9262]
+  # Global pwquality policy (used by pam_pwquality.so)
+  environment.etc."security/pwquality.conf".text = ''
+    minlen = 12
+    dcredit = -1        # require at least one digit
+    ucredit = -1        # require uppercase
+    lcredit = -1        # require lowercase
+    ocredit = -1        # require special
+    maxrepeat = 2
+    difok = 4
+    reject_username
+  '';
+
+  # Enforce quality checks when changing passwords with `passwd`
+  # (Affects only the passwd PAM service; logins remain unchanged.)
+  # Enforce strong passwords only when changing them via `passwd`
+  # (doesn't affect logins, so no lockout risk)
+  security.pam.services.passwd.text = ''
+    account   required pam_unix.so
+    session   required pam_unix.so
+
+    # Strength check first
+    password  requisite ${pkgs.passwdqc}/lib/security/pam_passwdqc.so min=12,12,12,12,12
+
+    # Update hash
+    password  required  pam_unix.so sha512 shadow use_authtok
+  '';
+
+    # Lynis compatibility: provide a 'common-password' with the module name
+    # (NixOS doesn't use this file; scanners look for it)
+
+    # 4) Optional: silence "pam.conf NOT FOUND" (not used by NixOS)
+  environment.etc."pam.conf".text = "# Compatibility stub for Lynis; NixOS uses /etc/pam.d/*";
+
+
+
+  # Generic “other” catch-all some scanners expect
+  #environment.etc."pam.d/other".text = ''
+  #  auth     required pam_deny.so
+  #  account  required pam_deny.so
+  #  password required pam_deny.so
+  #  session  required pam_deny.so
+  #'';
+
+  # [BANN-7126] Legal login banner for console and SSH
+  # Console/TTY banner
+  environment.etc."issue".text = ''
+    **********************************************************************
+    * WARNING: Restricted System                                          *
+    **********************************************************************
+    By accessing this machine, you acknowledge and accept the following:
+
+    - This system is only available for authorized users. Unauthorized or
+      prohibited use is strictly forbidden.
+
+    - This system is audited by means of automatic and manual monitoring.
+      All activity is monitored and logged for security and compliance.
+
+    - No privacy is guaranteed. By proceeding, you accept that your actions
+      are subject to monitoring, auditing, and enforcement of policies.
+
+    - Unauthorized access will be reported to law enforcement agencies,
+      and we will take legal measures as necessary.
+
+    - By proceeding, you accept the terms of this banner and consent to
+      monitoring, auditing, and enforcement as described.
+
+    **********************************************************************
+    * NOTICE: If you are not an authorized user, disconnect immediately. *
+    **********************************************************************
+  '';
+
+  # Reuse same banner for SSH
+  #services.openssh.enable = true;
+  services.openssh.banner = "/etc/issue";
+  # [SSH-7408] consolidate the common asks Lynis flags
+  services.openssh = {
+    enable = true;
+
+    # Conservative, Lynis-friendly hardening:
+    settings = {
+      AllowTcpForwarding = "no";     # (clear)
+      AllowAgentForwarding = "no";   # (clear)
+      TCPKeepAlive = "no";           # (clear)
+      ClientAliveInterval = 300;     # already OK per your scan
+      ClientAliveCountMax = 2;       # (clear)
+      LogLevel = "VERBOSE";          # (clear)
+      MaxAuthTries = 3;              # (clear)
+      MaxSessions = 2;               # (clear)
+      # Port = 2222;                 # (optional) only if you change firewall + clients
+      # AllowUsers = "user1";        # (optional) restrict who can SSH
+      # AllowGroups = "sshusers";    # (optional) or restrict by group
+    };
+
+    # Keep these if not already present:
+    permitRootLogin = "no";
+    passwordAuthentication = true;   # leave as-is if you need it; disable if you use keys-only
+  };
+
+  environment.etc."login.defs".text = lib.mkForce ''
+    PASS_MIN_DAYS 1
+    PASS_MAX_DAYS 365
+    PASS_WARN_AGE 7
+    UMASK 077
+    ENCRYPT_METHOD SHA512
+    SHA_CRYPT_MIN_ROUNDS 5000
+  '';
+
+  boot.tmp.useTmpfs = true;  # /tmp on tmpfs (addresses FILE-6310)
+  #fileSystems."/var/tmp".options = [ "nodev" "nosuid" ]; # safer defaults
+  fileSystems."/var/log".options = [ "nodev" "nosuid" ]; # you already have a subvol; add options
+  fileSystems."/var/tmp" = {
+    device = "tmpfs";
+    fsType  = "tmpfs";
+    options = [ "mode=1777" "nosuid" "nodev" ];
+  };
+
+  networking.hostName = "nixos";
+
+  # Networking
+  networking.networkmanager.enable = true;
+  #networking.wireless.enable = true;           # wpa_supplicant fallback
+  #networking.wireless.userControlled.enable = true;
+
+  networking.firewall = {
+    enable = true;
+    allowPing = false;
+    # allowedTCPPorts = [ ... ];
+    # allowedUDPPorts = [ ... ];
+  };
+
+
+  #   /* === NETW-3200: Disable uncommon network protocols ===
+  #      Rationale: Minimize kernel attack surface for unused stacks.
+  #      Verify: `lsmod | egrep "dccp|sctp|rds|tipc"` -> no results.
+  #   */
+  boot.blacklistedKernelModules = [
+    "dccp" "sctp" "rds" "tipc"
+  ];
+
+  # KDE Plasma 6 (Wayland)
+  services.xserver.enable = true;
+  services.displayManager.sddm.enable = true;
+  services.displayManager.sddm.wayland.enable = true;
+  services.desktopManager.plasma6.enable = true;
+  
+  # Flatpak + PackageKit
+  services.flatpak.enable = true;
+  services.packagekit.enable = true;
+
+  # (Optional but recommended for Flatpak portals in KDE)
+  xdg.portal.enable = true;
+  xdg.portal.extraPortals = [ pkgs.kdePackages.xdg-desktop-portal-kde ];
+  # (optional but handy so “Open With…” etc. use portals)
+  xdg.portal.xdgOpenUsePortal = true;
+  
+  # Input
+  services.libinput.enable = true;
+
+  # Audio (PipeWire)
+  services.pipewire = {
+    enable = true;
+    alsa.enable = true;
+    pulse.enable = true;
+    jack.enable = true;
+  };
+
+  services.pulseaudio.enable = false;
+
+  # Bluetooth
+  hardware.bluetooth.enable = true;
+  services.blueman.enable = true;
+
+  # Snapper + grub-btrfs (automatic timeline snapshots + GRUB menu)
+  environment.systemPackages = with pkgs; [
+    snapper
+    vim
+    neovim
+    git
+    firefox
+    chromium
+    btrfs-progs
+    htop
+    neofetch
+    tor-browser
+    vscodium
+    #KDE packages
+    kdePackages.dolphin kdePackages.konsole kdePackages.kate kdePackages.discover
+
+    #USB Firewall
+    usbguard
+
+    #rkhunter
+    chkrootkit
+    aide
+    lynis
+
+    libpwquality
+    passwdqc
+    acct
+
+    vulnix #Package audit tool (PKGS-7398)
+    ansible #TOOL-5002
+  ];
+
+
+  # Replace your existing systemd.services.chkrootkit-scan block with this:
+  systemd.services.chkrootkit-scan = {
+    description = "Daily Rootkit Scan (chkrootkit)";
+    unitConfig.OnFailure = [ "chkrootkit-alert@%n.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      Environment = [
+        "PATH=${lib.makeBinPath [
+          pkgs.chkrootkit pkgs.coreutils pkgs.gawk pkgs.gnused pkgs.gnugrep
+          pkgs.findutils pkgs.util-linux pkgs.kmod pkgs.nettools
+          pkgs.procps pkgs.iproute2 pkgs.binutils
+        ]}"
+      ];
+      ExecStart = pkgs.writeShellScript "chkrootkit-scan.sh" ''
+        export PATH="${lib.makeBinPath [
+          pkgs.gawk pkgs.gnused pkgs.gnugrep pkgs.findutils pkgs.coreutils
+          pkgs.util-linux pkgs.kmod pkgs.nettools pkgs.procps pkgs.iproute2 pkgs.binutils
+        ]}:$PATH"
+
+        set -euo pipefail
+
+        LOG_DIR="/var/log/chkrootkit"
+        LOG_FILE="$LOG_DIR/chkrootkit.log"
+
+        ${pkgs.coreutils}/bin/install -d -m 0750 -o root -g root "$LOG_DIR"
+        TMP="$(${pkgs.coreutils}/bin/mktemp)"
+        trap '${pkgs.coreutils}/bin/rm -f "$TMP"' EXIT
+
+        ${pkgs.chkrootkit}/sbin/chkrootkit 2>&1 | ${pkgs.coreutils}/bin/tee -a "$TMP"
+
+        {
+          echo "===== $(${pkgs.coreutils}/bin/date -Is) ====="
+          ${pkgs.coreutils}/bin/cat "$TMP"
+          echo
+        } >> "$LOG_FILE"
+
+        # keep raw scan in $TMP, also make a filtered view that drops known NixOS false positives
+        ${pkgs.gnugrep}/bin/grep -Ev \
+          "^Checking \`(basename|dirname|echo|env)'\.\.\. INFECTED$|^Checking \`date'\.\.\. /bin/sh$" \
+            "$TMP" > "$TMP.filtered" || true
+
+        # now alert/fail only if the filtered log still has real hits
+        if ${pkgs.gnugrep}/bin/grep -Eiq '(^| )INFECTED( |$)' "$TMP.filtered"; then
+          ${pkgs.util-linux}/bin/logger -p daemon.err -t chkrootkit "Findings detected. See $LOG_FILE"
+          ${pkgs.util-linux}/bin/wall "chkrootkit: findings detected. See $LOG_FILE"
+          exit 1
+        fi
+      '';
+    };
+  };
+
+
+  systemd.timers.chkrootkit-scan = {
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "daily";
+      Persistent = true;
+    };
+  };
+
+  systemd.services."chkrootkit-alert@".unitConfig.Description =
+    "Chkrootkit Failure Alert for %I";
+  systemd.services."chkrootkit-alert@".serviceConfig = {
+    Type = "oneshot";
+    ExecStart = pkgs.writeShellScript "chkrootkit-alert.sh" ''
+      logger -p daemon.err -t chkrootkit \
+        "Scan reported suspicious findings (unit: %I). Check /var/log/chkrootkit/chkrootkit.log"
+    '';
+  };
+
+  services.snapper.configs.root = {
+    SUBVOLUME = "/";
+    timeline = true;
+    timelineLimitHourly = 10;
+    timelineLimitDaily  = 7;
+    timelineLimitWeekly = 4;
+    timelineLimitMonthly = 3;
+    cleanup = "timeline";
+  };
+
+  services.usbguard = {
+    enable = true;
+    implicitPolicyTarget = "block";
+    IPCAllowedGroups = [ "usbguard" ];  # let tray/scripts talk to the daemon
+    # presentDevicePolicy = "apply-policy";  # optional: enforce policy on devices already present at start
+    # ruleFile = "/etc/usbguard/rules.conf"; # use file on disk (editable). If you instead set `services.usbguard.rules =
+                                             # the rules become immutable & GUI/scripts can’t change them. :contentReference[oaicite:1]{index=1
+  };
+
+
+  # Optional: forward logs off-box later with syslog-ng/rsyslog if you want remote logging.
+
+  # Fonts
+  fonts.packages = with pkgs; [ noto-fonts noto-fonts-emoji dejavu_fonts ];
+
+  # User (fix group name)
+  users.users.user1 = {
+    isNormalUser = true;
+    extraGroups = [ "wheel" "networkmanager" "audio" "video" "usbguard" ];
+  };
+
+  time.timeZone = "America/New_York";
+  i18n.defaultLocale = "en_US.UTF-8";
+
+  system.stateVersion = "25.05";
+}

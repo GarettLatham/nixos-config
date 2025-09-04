@@ -1,0 +1,271 @@
+{ config, lib, pkgs, ... }:
+
+{
+  imports = [ ./hardware-configuration.nix ];
+
+  system.autoUpgrade = {
+    enable = true;
+    allowReboot = true;          # optional
+    dates = "daily";             # or "weekly"
+    randomizedDelaySec = "30min";
+  };
+
+  # Unfree only for linux-firmware
+  nixpkgs.config.allowUnfreePredicate = pkg:
+    builtins.elem (pkgs.lib.getName pkg) [ "linux-firmware" ];
+  hardware.enableRedistributableFirmware = true;
+
+
+
+
+  #   /* === BOOT-5264: Harden systemd units (service-by-service) ===
+  #      Rationale: Reduce exposure values from `systemd-analyze security`.
+  #      Example: harden NetworkManager (adjust to your services).
+
+  #      Verify:
+  #        systemd-analyze security NetworkManager.service
+  #        systemctl show -p ProtectSystem NetworkManager.service
+  #   */
+  # [BOOT-5264] Harden NetworkManager without breaking it
+  systemd.services.NetworkManager.serviceConfig = {
+    # Keep upstream capability set (don’t blank it; NM needs NET_ADMIN/NET_RAW at minimum)
+    # CapabilityBoundingSet = [ ];        # ← leave unset to inherit upstream
+    # AmbientCapabilities = [ ];          # ← leave unset
+
+    NoNewPrivileges = true;
+
+    # Device access: NM needs rfkill/tun, so don’t hide /dev entirely
+    PrivateDevices = false;
+
+    PrivateTmp = true;
+    ProtectControlGroups = true;
+    ProtectHostname = true;
+    ProtectKernelLogs = true;
+    ProtectKernelModules = true;
+    ProtectKernelTunables = true;
+
+    # Filesystem protection:
+    # "full" makes /usr and /etc read-only. Allow specific writes NM needs.
+    ProtectSystem = "full";
+    ReadWritePaths = [
+      "/run"
+      "/var/lib/NetworkManager"
+      "/etc/NetworkManager"
+      "/etc/resolv.conf"       # if NM manages resolv.conf on your host
+    ];
+
+    # NM needs these address families to operate
+    RestrictAddressFamilies = [
+      "AF_UNIX"
+      "AF_NETLINK"             # for rtnetlink to kernel
+      "AF_INET"
+      "AF_INET6"
+      "AF_PACKET"              # for low-level link ops/monitoring
+      #"AF_BLUETOOTH"           # keep if you use BT tethering; remove otherwise
+    ];
+
+    RestrictNamespaces = true;
+    RestrictRealtime = true;
+    RestrictSUIDSGID = true;
+    LockPersonality = true;
+    SystemCallArchitectures = "native";
+    UMask = "0077";
+
+    # SystemCallFilter can be too tight for NM; omit unless you build a tested allowlist.
+    # SystemCallFilter = [ "@system-service" ];
+  };
+
+  # [BOOT-5264] Harden wpa_supplicant without breaking Wi-Fi
+  systemd.services.wpa_supplicant.serviceConfig = {
+    NoNewPrivileges = true;
+
+    # Needs rfkill and netlink/ioctl access → don't hide /dev entirely
+    PrivateDevices = false;
+
+    PrivateTmp = true;
+    ProtectControlGroups = true;
+    ProtectHostname = true;
+    ProtectKernelLogs = true;
+    ProtectKernelModules = true;
+    ProtectKernelTunables = true;
+
+    # Read-only system; grant writes only where wpa_supplicant stores state/sockets
+    ProtectSystem = "full";
+    ReadWritePaths = [
+      "/run/wpa_supplicant"
+      "/run"                       # belt-and-suspenders
+      "/etc/wpa_supplicant"        # if you edit/rotate conf at runtime
+    ];
+
+    # Socket families it actually uses
+    RestrictAddressFamilies = [
+      "AF_UNIX"      # control sockets
+      "AF_NETLINK"   # rtnetlink to the kernel
+      "AF_INET"      # DHCP/4-way handshake interactions via NM/clients
+      "AF_INET6"
+      "AF_PACKET"    # low-level link operations/802.11
+    ];
+
+    RestrictNamespaces = true;
+    RestrictRealtime = true;
+    RestrictSUIDSGID = true;
+    LockPersonality = true;
+    SystemCallArchitectures = "native";
+    UMask = "0077";
+
+    # Leave capabilities alone (NM/system package sets what’s needed like NET_ADMIN/NET_RAW).
+    # CapabilityBoundingSet = [ ];    # ← do NOT blank this for wpa_supplicant
+    # AmbientCapabilities   = [ ];    # ← leave unset
+  };
+
+  #Package audit tool PKGS-7398
+  #environment.systemPackages = (config.environment.systemPackages or []) ++ [ pkgs.vulnix ];
+  systemd.services.vulnix-scan = {
+    description = "Weekly vulnix CVE scan";
+    serviceConfig = { Type = "oneshot"; ExecStart = "${pkgs.vulnix}/bin/vulnix || true"; };
+  };
+  systemd.timers.vulnix-scan = {
+    wantedBy = [ "timers.target" ];
+    timerConfig = { OnCalendar = "weekly"; Persistent = true; };
+};
+
+
+
+
+  # 3) Process accounting & system stats (addresses ACCT-9622 / 9626)
+  #services.acct.enable = true;        # psacct (accton, sa, lastcomm)
+  # Create the pacct file with safe perms
+
+  # Enable accounting at boot
+  systemd.services.psacct-enable = {
+    description = "Enable process accounting (accton)";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "local-fs.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${pkgs.acct}/sbin/accton /var/log/pacct";
+    };
+  };
+
+  # sysstat (sar/sa) accounting
+  services.sysstat.enable = true;     # sar/iostat/collectl-style stats
+
+  # 4) RNG service (quiet entropy warning on laptops)
+  #services.rngd.enable = true;
+
+
+  # [AUTH-9262]
+  # Global pwquality policy (used by pam_pwquality.so)
+  environment.etc."security/pwquality.conf".text = ''
+    minlen = 12
+    dcredit = -1        # require at least one digit
+    ucredit = -1        # require uppercase
+    lcredit = -1        # require lowercase
+    ocredit = -1        # require special
+    maxrepeat = 2
+    difok = 4
+    reject_username
+  '';
+
+  # Enforce quality checks when changing passwords with `passwd`
+  # (Affects only the passwd PAM service; logins remain unchanged.)
+  # Enforce strong passwords only when changing them via `passwd`
+  # (doesn't affect logins, so no lockout risk)
+  security.pam.services.passwd.text = ''
+    account   required pam_unix.so
+    session   required pam_unix.so
+
+    # Strength check first
+    password  requisite ${pkgs.passwdqc}/lib/security/pam_passwdqc.so min=12,12,12,12,12
+
+    # Update hash
+    password  required  pam_unix.so sha512 shadow use_authtok
+  '';
+
+    # Lynis compatibility: provide a 'common-password' with the module name
+    # (NixOS doesn't use this file; scanners look for it)
+
+    # 4) Optional: silence "pam.conf NOT FOUND" (not used by NixOS)
+  environment.etc."pam.conf".text = "# Compatibility stub for Lynis; NixOS uses /etc/pam.d/*";
+
+
+
+  environment.etc."login.defs".text = lib.mkForce ''
+    PASS_MIN_DAYS 1
+    PASS_MAX_DAYS 365
+    PASS_WARN_AGE 7
+    UMASK 077
+    ENCRYPT_METHOD SHA512
+    SHA_CRYPT_MIN_ROUNDS 5000
+  '';
+
+
+  networking.hostName = "nixos";
+
+  # Networking
+  networking.networkmanager.enable = true;
+  #networking.wireless.enable = true;           # wpa_supplicant fallback
+  #networking.wireless.userControlled.enable = true;
+
+  networking.firewall = {
+    enable = true;
+    allowPing = false;
+    # allowedTCPPorts = [ ... ];
+    # allowedUDPPorts = [ ... ];
+  };
+
+  
+  # Flatpak + PackageKit
+  services.flatpak.enable = true;
+  services.packagekit.enable = true;
+
+
+  environment.systemPackages = with pkgs; [
+    snapper
+    vim
+    neovim
+    git
+    firefox
+    chromium
+    btrfs-progs
+    htop
+    neofetch
+    tor-browser
+    vscodium
+    #KDE packages
+    kdePackages.dolphin kdePackages.konsole kdePackages.kate kdePackages.discover
+
+    #USB Firewall
+    usbguard
+
+    #rkhunter
+    chkrootkit
+    aide
+    lynis
+
+    libpwquality
+    passwdqc
+    acct
+
+    vulnix #Package audit tool (PKGS-7398)
+    ansible #TOOL-5002
+  ];
+
+
+
+  # Optional: forward logs off-box later with syslog-ng/rsyslog if you want remote logging.
+
+  # Fonts
+  fonts.packages = with pkgs; [ noto-fonts noto-fonts-emoji dejavu_fonts ];
+
+  # User (fix group name)
+  users.users.user1 = {
+    isNormalUser = true;
+    extraGroups = [ "wheel" "networkmanager" "audio" "video" "usbguard" ];
+  };
+
+  time.timeZone = "America/New_York";
+  i18n.defaultLocale = "en_US.UTF-8";
+
+  system.stateVersion = "25.05";
+}
