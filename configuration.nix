@@ -18,6 +18,7 @@
 
     ./modules/desktop/kde.nix
     ./modules/desktop/audio-bluetooth.nix
+    ./modules/desktop/flatpak.nix
 
     ./modules/security/auditd.nix
     ./modules/security/aide.nix
