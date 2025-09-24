@@ -1,17 +1,23 @@
 { config, pkgs, ... }:
-
 {
-  services.pipewire = {
-    enable       = true;
-    alsa.enable  = true;
-    pulse.enable = true;
-    jack.enable  = true;
+  # Bluetooth
+  hardware.bluetooth = {
+    enable = true;
+    powerOnBoot = true;
   };
-
-  services.pulseaudio.enable = false;
-
-  hardware.bluetooth.enable = true;
   services.blueman.enable = true;
 
-  services.libinput.enable = true;
+  # Audio via PipeWire (replaces PulseAudio)
+  security.rtkit.enable = true;
+
+  services.pipewire = {
+    enable = true;
+    alsa.enable = true;
+    alsa.support32Bit = true;
+    pulse.enable = true;   # PulseAudio compatibility server
+    jack.enable = false;   # set true only if you need JACK
+  };
+
+  # Optional legacy toggle; safe to omit:
+  # sound.enable = true;
 }
