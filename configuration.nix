@@ -15,6 +15,7 @@
     ./modules/system/boot.nix
     ./modules/system/networking.nix
     ./modules/system/openssh.nix
+    ./modules/system/bluetooth.nix
 
     ./modules/desktop/kde.nix
     ./modules/desktop/audio-bluetooth.nix
