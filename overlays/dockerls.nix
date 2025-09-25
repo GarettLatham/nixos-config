@@ -1,13 +1,8 @@
-final: prev:
-let
-  hasLatest =
-    (prev ? nodePackages_latest)
-    && (prev.nodePackages_latest ? dockerfile-language-server-nodejs);
-in {
-  nodePackages =
-    (prev.nodePackages or {})
-    // (if hasLatest then {
-      dockerfile-language-server-nodejs =
-        prev.nodePackages_latest.dockerfile-language-server-nodejs;
-    } else {});
+# Overlay that provides pkgs.dockerfile-language-server
+self: super: {
+  dockerfile-language-server =
+    # prefer the normal nodePackages if present
+    (super.nodePackages.dockerfile-language-server-nodejs or null)
+    # fall back to nodePackages_latest on channels that use it
+    or (super.nodePackages_latest.dockerfile-language-server-nodejs or null);
 }
