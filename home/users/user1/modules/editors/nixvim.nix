@@ -73,6 +73,10 @@ in
 
       #Diagnostics - A unified list for LSP errors, quickfix, todo comments, etc.
       v.trouble-nvim
+
+      v.neo-tree-nvim
+      v.nui-nvim
+
     ];
 
     extraLuaConfig = ''
@@ -127,6 +131,10 @@ in
       -- Snippets
       local luasnip = require("luasnip")
       require("luasnip.loaders.from_vscode").lazy_load()
+
+      #File explorer
+      require("neo-tree").setup({})
+      vim.keymap.set("n", "<leader>e", "<cmd>Neotree toggle<cr>")
 
       -- nvim-cmp
       local cmp = require("cmp")
