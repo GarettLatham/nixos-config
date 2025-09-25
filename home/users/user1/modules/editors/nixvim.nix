@@ -33,6 +33,7 @@
       cmp-nvim-lsp
       cmp_luasnip
       nvim-tmux-navigation
+      vim-tmux-navigator
     ];
 
     extraConfigLua = ''
@@ -54,18 +55,18 @@
       -- vim-test via vimux
       vim.g["test#strategy"] = "vimux"
 
-      -- nvim-tmux-navigation
-      pcall(function()
-        require("nvim-tmux-navigation").setup({
-          disable_when_zoomed = true,
-          keybindings = {
-            left  = "<C-h>",
-            down  = "<C-j>",
-            up    = "<C-k>",
-            right = "<C-l>",
-          },
-        })
-      end)
+      #-- nvim-tmux-navigation
+      #pcall(function()
+      #  require("nvim-tmux-navigation").setup({
+      #    disable_when_zoomed = true,
+      #    keybindings = {
+      #      left  = "<C-h>",
+      #      down  = "<C-j>",
+      #      up    = "<C-k>",
+      #      right = "<C-l>",
+      #    },
+      #  })
+      #end)
     '';
 
     # Telescope
