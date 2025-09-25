@@ -32,7 +32,7 @@
       friendly-snippets
       cmp-nvim-lsp
       cmp_luasnip
-      nvim-tmux-navigation
+      #nvim-tmux-navigation
       vim-tmux-navigator
     ];
 
