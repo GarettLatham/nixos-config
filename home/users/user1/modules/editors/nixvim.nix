@@ -32,6 +32,7 @@
       friendly-snippets
       cmp-nvim-lsp
       cmp_luasnip
+      nvim-tmux-navigation
     ];
 
     extraConfigLua = ''
@@ -172,7 +173,7 @@
 
     # ---------- tmux navigation ----------
     #plugins.nvim-tmux-navigation.enable = true;
-    plugins."nvim-tmux-navigation".enable = true;
+    #plugins."nvim-tmux-navigation".enable = true;
 
     # ---------- FORMAT / DIAGNOSTICS (null-ls / none-ls) ----------
     plugins."none-ls".enable = true;
