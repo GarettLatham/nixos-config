@@ -33,6 +33,12 @@
     ./modules/security/vulnix.nix
 
   ];
+  
+  {
+    nixpkgs.overlays = (config.nixpkgs.overlays or []) ++ [
+      (import /etc/nixos/overlays/dockerls.nix)
+    ];
+  }
 
   # lock in state to avoid surprising migrations
   system.stateVersion = "25.05";

@@ -2,7 +2,6 @@
 {
   programs.nixvim = {
     enable = true;
-    generateDocs = false;
     # ---------- COLORS / UI ----------
     colorschemes.catppuccin = {
       enable = true;
