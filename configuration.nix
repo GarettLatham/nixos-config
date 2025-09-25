@@ -35,7 +35,7 @@
   ];
   
   nixpkgs.overlays = [
-    (import /etc/nixos/overlays/dockerls.nix)
+    (import ./overlays/dockerls.nix)
   ];
 
   # lock in state to avoid surprising migrations
