@@ -24,11 +24,18 @@ in
       marksman                # Markdown LSP
       yaml-language-server
       pyright                 # Python (needs node, provided above)
-
+      # Provide the Node.js Neovim host from nixpkgs to satisfy :checkhealth
+      nodePackages.neovim
       # Telescope deps
       ripgrep
       fd
+      typescript-language-server # TS/JS (needs node)
+      clang-tools
+      gopls
     ];
+
+    # Provide the Python Neovim host module via nixpkgs
+    extraPython3Packages = ps: with ps; [ pynvim ];
 
     plugins = [
       # UI & quality of life
