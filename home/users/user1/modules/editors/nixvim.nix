@@ -55,7 +55,7 @@ in
       v.which-key-nvim
 
       # Snippets & completion
-      v.LuaSnip
+      v.luasnip
       v.friendly-snippets
       v.nvim-cmp
       v.cmp-nvim-lsp
