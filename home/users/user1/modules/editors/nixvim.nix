@@ -1,104 +1,170 @@
-{ pkgs, ... }:
+{ config, pkgs, lib, ... }:
+
+let
+  v = pkgs.vimPlugins;
+in
 {
-  programs.nixvim = {
+  programs.neovim = {
     enable = true;
+    defaultEditor = true;
+    viAlias = true;
+    vimAlias = true;
 
-    # ---------- UI / Colors ----------
-    colorschemes.catppuccin = {
-      enable = true;
-      settings.flavour = "mocha";
-    };
+    # Enable built-in language hosts
+    withNodeJs = true;
+    withPython3 = true;
+    withRuby = true;
 
-    plugins.alpha = {
-      enable = true;
-      theme = "startify";
-    };
-
-    # ---------- Treesitter ----------
-    plugins.treesitter = {
-      enable = true;
-      settings = {
-        highlight.enable = true;
-        indent.enable = true;
-        ensure_installed = [ "lua" "vim" "vimdoc" "markdown" "markdown_inline" "c" ];
-      };
-    };
-
-    # ---------- Telescope ----------
-    plugins.telescope = {
-      enable = true;
-      extensions.ui-select.enable = true;
-      keymaps = {
-        "<C-p>" = "git_files";
-        "<leader>fg" = "live_grep";
-        "<leader><leader>" = "buffers";
-        "<leader>ff" = "find_files";
-      };
-      settings.defaults.mappings.i = { "<C-u>" = false; "<C-d>" = false; };
-    };
-
-    # ---------- Completion / Snippets ----------
-    plugins.cmp = {
-      enable = true;
-      autoEnableSources = true;
-      sources = [
-        { name = "nvim_lsp"; }
-        { name = "path"; }
-        { name = "buffer"; }
-        { name = "luasnip"; }
-      ];
-      mapping = {
-        "<CR>" = "cmp.mapping.confirm({ select = true })";
-        "<C-Space>" = "cmp.mapping.complete()";
-        "<C-e>" = "cmp.mapping.abort()";
-        "<Tab>" = ''
-          function(fallback)
-            if cmp.visible() then
-              cmp.select_next_item()
-            elseif luasnip.expand_or_jumpable() then
-              luasnip.expand_or_jump()
-            else
-              fallback()
-            end
-          end
-        '';
-        "<S-Tab>" = ''
-          function(fallback)
-            if cmp.visible() then
-              cmp.select_prev_item()
-            elseif luasnip.jumpable(-1) then
-              luasnip.jump(-1)
-            else
-              fallback()
-            end
-          end
-        '';
-      };
-    };
-
-    plugins.luasnip = {
-      enable = true;
-      fromVscode = [ ]; # add vscode-style snippet packs if you want
-    };
-
-    # ---------- LSP (no dockerls) ----------
-    plugins.lsp = {
-      enable = true;
-      # You can add language servers here later (e.g., lua_ls, pyright, etc.).
-    };
-
-    # ---------- Quality of life ----------
-    globals.mapleader = " ";
-    opts = {
-      number = true;
-      relativenumber = true;
-      termguicolors = true;
-      clipboard = "unnamedplus";
-    };
-    keymaps = [
-      # Quick file tree / placeholder (replace with your favorite)
-      { mode = "n"; key = "<leader>w"; action = ":w<CR>"; options.desc = "Save"; }
-      { mode = "n"; key = "<leader>q"; action = ":q<CR>"; options.desc = "Quit"; }
+    # Install LSP servers and other executables Neovim uses
+    extraPackages = with pkgs; [
+      # LSP servers (NO dockerls here)
+      lua-language-server
+      rust-analyzer
+      bash-language-server
+      marksman                # markdown LSP
+      yaml-language-server
+      pyright                 # Python (needs node, provided above)
+      # Add more if you want:
+      # clang-tools           # C/C++ (clangd)
+      # gopls                 # Go
+      # typescript-language-server # TS/JS (needs node)
     ];
+
+    # Plugins
+    plugins = [
+      v.nvim-web-devicons
+      v.catppuccin-nvim
+      v.lualine-nvim
+      v.gitsigns-nvim
+      v.comment-nvim
+      v.nvim-tree-lua
+      v.nvim-ts-autotag
+      v.nvim-autopairs
+      v.nvim-surround
+
+      # Telescope
+      v.plenary-nvim
+      v.telescope-nvim
+
+      # Treesitter
+      v.nvim-treesitter
+      v.nvim-treesitter-textobjects
+      v.nvim-treesitter-context
+
+      # Which-key
+      v.which-key-nvim
+
+      # Snippets & completion
+      v.LuaSnip
+      v.friendly-snippets
+      v.nvim-cmp
+      v.cmp-nvim-lsp
+      v.cmp-buffer
+      v.cmp-path
+      v.cmp_luasnip
+
+      # LSP setup
+      v.nvim-lspconfig
+    ];
+
+    # Minimal, boring-good defaults in Lua
+    extraLuaConfig = ''
+      -- UI/theme
+      vim.o.termguicolors = true
+      vim.cmd.colorscheme("catppuccin")
+
+      -- Telescope
+      local telescope = require("telescope")
+      telescope.setup({})
+      vim.keymap.set("n", "<leader>ff", "<cmd>Telescope find_files<cr>")
+      vim.keymap.set("n", "<leader>fg", "<cmd>Telescope live_grep<cr>")
+
+      -- Treesitter
+      require("nvim-treesitter.configs").setup({
+        highlight = { enable = true },
+        indent = { enable = true },
+        incremental_selection = { enable = true },
+        textobjects = { enable = true },
+        ensure_installed = { "lua", "vim", "vimdoc", "markdown", "markdown_inline", "c" },
+      })
+
+      -- Lualine
+      require("lualine").setup({ options = { theme = "auto" } })
+
+      -- Gitsigns
+      require("gitsigns").setup()
+
+      -- Comment
+      require("Comment").setup()
+
+      -- Autopairs
+      require("nvim-autopairs").setup({})
+
+      -- Which-key
+      require("which-key").setup()
+
+      -- Snippets
+      local luasnip = require("luasnip")
+      require("luasnip.loaders.from_vscode").lazy_load()
+
+      -- nvim-cmp
+      local cmp = require("cmp")
+      cmp.setup({
+        snippet = {
+          expand = function(args) luasnip.lsp_expand(args.body) end,
+        },
+        mapping = cmp.mapping.preset.insert({
+          ["<CR>"] = cmp.mapping.confirm({ select = true }),
+          ["<C-Space>"] = cmp.mapping.complete(),
+          ["<Tab>"] = function(fallback)
+            if cmp.visible() then cmp.select_next_item()
+            elseif luasnip.expand_or_jumpable() then luasnip.expand_or_jump()
+            else fallback() end
+          end,
+          ["<S-Tab>"] = function(fallback)
+            if cmp.visible() then cmp.select_prev_item()
+            elseif luasnip.jumpable(-1) then luasnip.jump(-1)
+            else fallback() end
+          end,
+        }),
+        sources = cmp.config.sources({
+          { name = "nvim_lsp" },
+          { name = "luasnip" },
+        }, {
+          { name = "buffer" },
+          { name = "path" },
+        }),
+      })
+
+      -- Basic LSP bootstrap (NO dockerls)
+      local lspconfig = require("lspconfig")
+      local capabilities = require("cmp_nvim_lsp").default_capabilities()
+
+      local servers = {
+        "lua_ls",
+        "rust_analyzer",
+        "bashls",
+        "marksman",
+        "yamlls",
+        "pyright",
+        -- add more if you enable them in extraPackages:
+        -- "clangd", "gopls", "tsserver",
+      }
+
+      for _, s in ipairs(servers) do
+        lspconfig[s].setup({ capabilities = capabilities })
+      end
+
+      -- Make Lua language server not complain about vim globals
+      lspconfig.lua_ls.setup({
+        capabilities = capabilities,
+        settings = {
+          Lua = {
+            diagnostics = { globals = { "vim" } },
+            workspace = { checkThirdParty = false },
+          },
+        },
+      })
+    '';
   };
 }
