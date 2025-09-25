@@ -70,6 +70,9 @@ in
 
       # LSP setup helpers
       v.nvim-lspconfig
+
+      #Diagnostics - A unified list for LSP errors, quickfix, todo comments, etc.
+      v.trouble-nvim
     ];
 
     extraLuaConfig = ''
@@ -116,6 +119,10 @@ in
 
       -- Which-key
       require("which-key").setup()
+
+      -- Trouble
+      require("trouble").setup({})
+      vim.keymap.set("n", "<leader>xx", "<cmd>Trouble diagnostics toggle<cr>")
 
       -- Snippets
       local luasnip = require("luasnip")
