@@ -189,10 +189,14 @@
         html.enable = true;
         cssls.enable = true;
         jsonls.enable = true;
-        dockerls = {
-          enable = true;
-          package = pkgs.nodePackages.dockerfile-language-server-nodejs;
-        };
+        plugins.lsp.servers.dockerls.enable = false;
+
+        #dockerls = {
+        #  enable = true;
+          # works on most channels; falls back to nodePackages_latest if needed
+        #  package = (pkgs.nodePackages.dockerfile-language-server-nodejs or pkgs.nodePackages_latest.dockerfile-language-server-nodejs);
+        #};
+
         bashls.enable = true;
         yamlls.enable = true;
         nil_ls.enable = true;
