@@ -189,7 +189,10 @@
         html.enable = true;
         cssls.enable = true;
         jsonls.enable = true;
-        dockerls.enable = true;
+        dockerls = {
+          enable = true;
+          package = pkgs.nodePackages.dockerfile-language-server-nodejs;
+        };
         bashls.enable = true;
         yamlls.enable = true;
         nil_ls.enable = true;
