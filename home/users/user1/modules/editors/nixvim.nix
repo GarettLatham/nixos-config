@@ -65,32 +65,6 @@
       end)
     '';
 
-    extraConfigLuaPost = ''
-      -- alpha.nvim: set custom header and apply startify theme
-      do
-        local alpha = require("alpha")
-        local startify = require("alpha.themes.startify")
-        startify.section.header.val = {
-          "                                                                       ",
-          "                                                                       ",
-          "                                                                       ",
-          "                                                                       ",
-          "                                                                     ",
-          "       ████ ██████           █████      ██                     ",
-          "      ███████████             █████                             ",
-          "      █████████ ███████████████████ ███   ███████████   ",
-          "     █████████  ███    █████████████ █████ ██████████████   ",
-          "    █████████ ██████████ █████████ █████ █████ ████ █████   ",
-          "  ███████████ ███    ███ █████████ █████ █████ ████ █████  ",
-          " ██████  █████████████████████ ████ █████ █████ ████ ██████ ",
-          "                                                                       ",
-          "                                                                       ",
-          "                                                                       ",
-        }
-      	alpha.setup(startify.config)
-      end
-    '';
-
     # Telescope
     plugins.telescope = {
       enable = true;
@@ -211,14 +185,38 @@
 
     # Swagger preview (plugin via extraPlugins)
     extraConfigLuaPost = ''
+      -- Swagger preview
       pcall(function()
         require("swagger-preview").setup({
           port = 8000,
           host = "127.0.0.1",
-        })
+      	})
       end)
+
+      -- alpha.nvim: set custom header and apply startify theme
+      do
+        local alpha = require("alpha")
+        local startify = require("alpha.themes.startify")
+        startify.section.header.val = {
+          "                                                                       ",
+          "                                                                       ",
+          "                                                                       ",
+          "                                                                       ",
+          "                                                                     ",
+          "       ████ ██████           █████      ██                     ",
+          "      ███████████             █████                             ",
+          "      █████████ ███████████████████ ███   ███████████   ",
+          "     █████████  ███    █████████████ █████ ██████████████   ",
+          "    █████████ ██████████ █████████ █████ █████ ████ █████   ",
+          "  ███████████ ███    ███ █████████ █████ █████ ████ █████  ",
+          " ██████  █████████████████████ ████ █████ █████ ████ ██████ ",
+          "                                                                       ",
+          "                                                                       ",
+          "                                                                       ",
+        }
+        alpha.setup(startify.config)
+      end
     '';
-  };
 
   # ---------- Packages these plugins/tools need ----------
   fonts.fontconfig.enable = true;
