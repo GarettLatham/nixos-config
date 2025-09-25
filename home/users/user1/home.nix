@@ -8,9 +8,9 @@
     ./modules/editors/nixvim.nix
   ];
 
-  nixpkgs.overlays = [
-    (import ../../overlays/dockerls.nix)
-  ];
+  #nixpkgs.overlays = [
+  #  (import ../../overlays/dockerls.nix)
+  #];
 
   # Optional: per-user shell preference
   programs.zsh.enable = true;
