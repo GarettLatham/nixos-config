@@ -1,12 +1,9 @@
-# Provide pkgs.dockerfile-language-server for nixvim docs
-self: super:
-let
-  np  = if super ? nodePackages        then super.nodePackages        else {};
-  npl = if super ? nodePackages_latest then super.nodePackages_latest else {};
-  dls =
-    if np  ? dockerfile-language-server-nodejs then np.dockerfile-language-server-nodejs
-    else if npl ? dockerfile-language-server-nodejs then npl.dockerfile-language-server-nodejs
-    else null;
-in {
-  dockerfile-language-server = dls;
+# overlays/dockerls.nix
+self: super: {
+  dockerfile-language-server =
+    if (super ? nodePackages) && (super.nodePackages ? dockerfile-language-server-nodejs)
+    then super.nodePackages.dockerfile-language-server-nodejs
+    else if (super ? nodePackages_latest) && (super.nodePackages_latest ? dockerfile-language-server-nodejs)
+    then super.nodePackages_latest.dockerfile-language-server-nodejs
+    else null; # still OK: nixvim only needs the attribute to exist during docs eval
 }
