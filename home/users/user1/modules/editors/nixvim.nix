@@ -47,10 +47,10 @@ in
       v.telescope-nvim
 
       # Treesitter
-      v.nvim-treesitter
+      #v.nvim-treesitter
       v.nvim-treesitter-textobjects
       v.nvim-treesitter-context
-
+      v.nvim-treesitter.withAllGrammars
       # Which-key
       v.which-key-nvim
 
