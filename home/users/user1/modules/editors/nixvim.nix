@@ -4,7 +4,6 @@
     enable = true;
 
     # ---------- COLORS / UI ----------
-    #plugins.catppuccin = {
     colorschemes.catppuccin = {
       enable = true;
       settings.flavour = "mocha";
@@ -16,60 +15,27 @@
     };
 
     # ---------- EDITING / NAV ----------
-    #plugins.neo-tree = {
     plugins."neo-tree" = {
       enable = true;
       filesystem.followCurrentFile.enabled = true;
       window = { width = 32; };
     };
 
-    # Extras not exposed as direct nixvim options
+    # Explicit devicons (nvim-web-devicons)
+    plugins.web-devicons.enable = true;
+
+    # Extra plugins not directly exposed as nixvim options
     extraPlugins = with pkgs.vimPlugins; [
       oil-nvim
       nvim-web-devicons
       vim-fugitive
-      #swagger-preview-nvim
       friendly-snippets
       cmp-nvim-lsp
       cmp_luasnip
-      #nvim-tmux-navigation
       vim-tmux-navigator
     ];
 
-    extraConfigLua = ''
-      -- Colorscheme (explicit)
-      vim.cmd.colorscheme("catppuccin-mocha")
-
-      -- oil.nvim
-      require("oil").setup({
-        default_file_explorer = true,
-        columns = { "icon" },
-        view_options = { show_hidden = true },
-      })
-      vim.keymap.set("n", "-", require("oil").open, { desc = "Open parent dir (oil)" })
-
-      -- gitsigns hotkeys
-      vim.keymap.set("n", "<leader>gp", ":Gitsigns preview_hunk<CR>", {})
-      vim.keymap.set("n", "<leader>gt", ":Gitsigns toggle_current_line_blame<CR>", {})
-
-      -- vim-test via vimux
-      vim.g["test#strategy"] = "vimux"
-
-      #-- nvim-tmux-navigation
-      #pcall(function()
-      #  require("nvim-tmux-navigation").setup({
-      #    disable_when_zoomed = true,
-      #    keybindings = {
-      #      left  = "<C-h>",
-      #      down  = "<C-j>",
-      #      up    = "<C-k>",
-      #      right = "<C-l>",
-      #    },
-      #  })
-      #end)
-    '';
-
-    # Telescope
+    # ---------- Telescope ----------
     plugins.telescope = {
       enable = true;
       extensions.ui-select.enable = true;
@@ -86,67 +52,13 @@
     plugins.luasnip.enable = true;
     plugins.cmp.enable = true;
 
-    #plugins.cmp = {
-    #  enable = true;
-    #  autoEnableSources = false;
-    #  sources = [
-    #    { name = "nvim_lsp"; }
-    #    { name = "luasnip"; }
-    #    { name = "buffer"; }
-    #  ];
-    #  mappingPresets = [ "insert" ];
-    #  settings = {
-    #    window = {
-    #      completion = { border = "single"; };
-    #      documentation = { border = "single"; };
-    #    };
-    #    mapping = {
-    #      "<C-b>" = "cmp.mapping.scroll_docs(-4)";
-    #      "<C-f>" = "cmp.mapping.scroll_docs(4)";
-    #      "<C-Space>" = "cmp.mapping.complete()";
-    #      "<C-e>" = "cmp.mapping.abort()";
-    #      "<CR>" = "cmp.mapping.confirm({ select = true })";
-    #    };
-    #    snippet.expand = ''
-    #      function(args) require("luasnip").lsp_expand(args.body) end
-    #    '';
-    #  };
-    #};
-
-    # ---------- TREESITTER ----------
-    #plugins.treesitter = {
-    #  enable = true;
-    #  folding = true;
-    #  indent = true;
-    #  nixGrammars = true;
-    #  ensureInstalled = [
-    #    "bash" "c" "cpp" "css" "diff" "git_config" "gitcommit" "git_rebase" "gitattributes"
-    #    "go" "gomod" "html" "javascript" "json" "lua" "luadoc" "luap" "markdown"
-    #    "markdown_inline" "nix" "python" "query" "regex" "ruby" "rust" "toml" "tsx"
-    #    "typescript" "vim" "vimdoc" "yaml"
-    #  ];
-    #  settings = {
-    #    highlight = { enable = true; additional_vim_regex_highlighting = false; };
-    #    incremental_selection = {
-    #      enable = true;
-    #      keymaps = {
-    #        init_selection = "<CR>";
-    #        node_incremental = "<CR>";
-    #        scope_incremental = "<S-CR>";
-    #        node_decremental = "<BS>";
-    #      };
-    #    };
-    #  };
-    #};
-
+    # ---------- Treesitter (25.05 schema) ----------
     plugins.treesitter = {
       enable = true;
       folding = true;
       nixGrammars = true;
-
       settings = {
         indent.enable = true;
-
         ensure_installed = [
           "bash" "c" "cpp" "css" "diff"
           "git_config" "gitcommit" "git_rebase" "gitattributes"
@@ -158,10 +70,8 @@
           "ruby" "rust" "toml" "tsx" "typescript"
           "vim" "vimdoc" "yaml"
         ];
-
         highlight.enable = true;
         highlight.additional_vim_regex_highlighting = false;
-
         incremental_selection.enable = true;
         incremental_selection.keymaps = {
           init_selection = "<CR>";
@@ -185,23 +95,23 @@
       };
       servers = {
         lua_ls.enable = true;
-        ts_ls.enable = true;
+        ts_ls.enable = true;     # (tsserver -> ts_ls)
         html.enable = true;
         cssls.enable = true;
         jsonls.enable = true;
-        plugins.lsp.servers.dockerls.enable = false;
 
-        #dockerls = {
-        #  enable = true;
-          # works on most channels; falls back to nodePackages_latest if needed
-        #  package = (pkgs.nodePackages.dockerfile-language-server-nodejs or pkgs.nodePackages_latest.dockerfile-language-server-nodejs);
-        #};
+        # Disable Dockerfile LSP for now (can re-enable later when pkg attr is stable).
+        dockerls.enable = false;
 
         bashls.enable = true;
         yamlls.enable = true;
         nil_ls.enable = true;
         clangd.enable = true;
-        rust_analyzer.enable = true;
+        rust_analyzer = {
+          enable = true;
+          installCargo = false;  # we install via home.packages
+          installRustc  = false; # we install via home.packages
+        };
         # solargraph.enable = true; # enable if you install the gem or package
       };
     };
@@ -210,43 +120,33 @@
     plugins.gitsigns.enable = true;
 
     # ---------- TESTING ----------
-    #plugins.vim-test.enable = true;
     plugins."vim-test".enable = true;
 
-    # ---------- tmux navigation ----------
-    #plugins.nvim-tmux-navigation.enable = true;
-    #plugins."nvim-tmux-navigation".enable = true;
-
-    # ---------- FORMAT / DIAGNOSTICS (null-ls / none-ls) ----------
+    # ---------- FORMAT / DIAGNOSTICS ----------
     plugins."none-ls".enable = true;
 
-    plugins.web-devicons.enable = true;
+    # ---------- Lua config ----------
+    extraConfigLua = ''
+      -- Colorscheme (explicit)
+      vim.cmd.colorscheme("catppuccin-mocha")
 
-    #plugins.none-ls = {
-    #plugins."none-ls" = {
-    #  enable = true;
-    #  sources.formatting = {
-    #    stylua.enable = true;
-    #    shfmt.enable = true;
-    #    prettier.enable = true;   # swap to prettierd if preferred
-    #  };
-    #  sources.diagnostics = {
-    #    eslint_d.enable = true;
-    #    # rubocop.enable = true;   # requires gem
-    #    # erb_lint.enable = true;  # requires gem
-    #  };
-    #};
+      -- oil.nvim
+      require("oil").setup({
+        default_file_explorer = true,
+        columns = { "icon" },
+        view_options = { show_hidden = true },
+      })
+      vim.keymap.set("n", "-", require("oil").open, { desc = "Open parent dir (oil)" })
 
-    # Swagger preview (plugin via extraPlugins)
+      -- gitsigns hotkeys
+      vim.keymap.set("n", "<leader>gp", ":Gitsigns preview_hunk<CR>", {})
+      vim.keymap.set("n", "<leader>gt", ":Gitsigns toggle_current_line_blame<CR>", {})
+
+      -- vim-test via vimux
+      vim.g["test#strategy"] = "vimux"
+    '';
+
     extraConfigLuaPost = ''
-      -- Swagger preview
-      pcall(function()
-        require("swagger-preview").setup({
-          port = 8000,
-          host = "127.0.0.1",
-      	})
-      end)
-
       -- alpha.nvim: set custom header and apply startify theme
       do
         local alpha = require("alpha")
@@ -269,8 +169,9 @@
           "                                                                       ",
         }
         alpha.setup(startify.config)
-      #end
-        -- nvim-cmp configuration (schema-stable via Lua)
+      end
+
+      -- nvim-cmp configuration (Lua is schema-stable)
       do
         local ok, cmp = pcall(require, "cmp")
         if ok then
@@ -292,13 +193,14 @@
             sources = cmp.config.sources({
               { name = "nvim_lsp" },
               { name = "luasnip" },
-           }, {
+            }, {
               { name = "buffer" },
-           }),
-      	})
+            }),
+          })
+        end
       end
 
-        -- none-ls / null-ls: formatters & diagnostics
+      -- none-ls / null-ls: formatters & diagnostics
       do
         local ok, null_ls = pcall(require, "null-ls")  -- module name is still 'null-ls'
         if ok then
@@ -310,25 +212,26 @@
           local sources = {}
 
           -- formatters
-          if has("stylua")   then table.insert(sources, fmt.stylua) end
-          if has("shfmt")    then table.insert(sources, fmt.shfmt) end
+          if has("stylua")  then table.insert(sources, fmt.stylua) end
+          if has("shfmt")   then table.insert(sources, fmt.shfmt) end
           if has("prettierd") then
             table.insert(sources, fmt.prettierd)
           elseif has("prettier") then
             table.insert(sources, fmt.prettier)
-      end
+          end
 
-      -- linters / diagnostics
-      if has("eslint_d") then
-        table.insert(sources, diag.eslint_d)
-        table.insert(sources, actions.eslint_d)
-      end
-      # If you install Ruby tools later:
-      # if has("rubocop")  then table.insert(sources, diag.rubocop); table.insert(sources, fmt.rubocop) end
-      # if has("erb_lint") then table.insert(sources, diag.erb_lint) end
+          -- linters / diagnostics
+          if has("eslint_d") then
+            table.insert(sources, diag.eslint_d)
+            table.insert(sources, actions.eslint_d)
+          end
+          -- Ruby (optional):
+          -- if has("rubocop")  then table.insert(sources, diag.rubocop); table.insert(sources, fmt.rubocop) end
+          -- if has("erb_lint") then table.insert(sources, diag.erb_lint) end
 
-      null_ls.setup({ sources = sources })
-    end
+          null_ls.setup({ sources = sources })
+        end
+      end
     '';
   };
 
@@ -361,7 +264,6 @@
     nodePackages.eslint_d
 
     ruby
-    #(nerdfonts.override { fonts = [ "FiraCode" ]; })
     nerd-fonts.fira-code
   ];
 }
