@@ -250,7 +250,7 @@
     lua-language-server
     typescript-language-server
     vscode-langservers-extracted
-    nodePackages.dockerfile-language-server-nodejs
+    #nodePackages.dockerfile-language-server-nodejs
     bash-language-server
     yaml-language-server
     nil
