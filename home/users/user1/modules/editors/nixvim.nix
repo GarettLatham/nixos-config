@@ -55,7 +55,7 @@ in
       v.telescope-nvim
 
       # Treesitter: core parsers from Nix + companion plugins
-      (v.nvim-treesitter.withAllGrammars)
+      v.nvim-treesitter.withAllGrammars
       v.nvim-treesitter-textobjects
       v.nvim-treesitter-context
 
