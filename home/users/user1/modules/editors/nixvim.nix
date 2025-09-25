@@ -217,6 +217,7 @@
         alpha.setup(startify.config)
       end
     '';
+  };
 
   # ---------- Packages these plugins/tools need ----------
   fonts.fontconfig.enable = true;
