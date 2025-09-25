@@ -15,23 +15,23 @@ in
     withPython3 = true;
     withRuby = true;
 
-    # Install LSP servers and other executables Neovim uses
+    # Tools/LSP servers & CLI deps Neovim uses
     extraPackages = with pkgs; [
       # LSP servers (NO dockerls here)
       lua-language-server
       rust-analyzer
       bash-language-server
-      marksman                # markdown LSP
+      marksman                # Markdown LSP
       yaml-language-server
       pyright                 # Python (needs node, provided above)
-      # Add more if you want:
-      # clang-tools           # C/C++ (clangd)
-      # gopls                 # Go
-      # typescript-language-server # TS/JS (needs node)
+
+      # Telescope deps
+      ripgrep
+      fd
     ];
 
-    # Plugins
     plugins = [
+      # UI & quality of life
       v.nvim-web-devicons
       v.catppuccin-nvim
       v.lualine-nvim
@@ -41,18 +41,16 @@ in
       v.nvim-ts-autotag
       v.nvim-autopairs
       v.nvim-surround
+      v.which-key-nvim
 
       # Telescope
       v.plenary-nvim
       v.telescope-nvim
 
-      # Treesitter
-      #v.nvim-treesitter.withAllGrammars
-      v.nvim-treesitter.withAllGrammars-textobjects
-      v.nvim-treesitter.withAllGrammars-context
-      v.nvim-treesitter.withAllGrammars.withAllGrammars
-      # Which-key
-      v.which-key-nvim
+      # Treesitter: core parsers from Nix + companion plugins
+      (v.nvim-treesitter.withAllGrammars)
+      v.nvim-treesitter-textobjects
+      v.nvim-treesitter-context
 
       # Snippets & completion
       v.luasnip
@@ -63,11 +61,10 @@ in
       v.cmp-path
       v.cmp_luasnip
 
-      # LSP setup
+      # LSP setup helpers
       v.nvim-lspconfig
     ];
 
-    # Minimal, boring-good defaults in Lua
     extraLuaConfig = ''
       -- UI/theme
       vim.o.termguicolors = true
@@ -79,22 +76,24 @@ in
       vim.keymap.set("n", "<leader>ff", "<cmd>Telescope find_files<cr>")
       vim.keymap.set("n", "<leader>fg", "<cmd>Telescope live_grep<cr>")
 
-      -- Treesitter
-      require("nvim-treesitter.withAllGrammars.configs").setup({
+      -- Treesitter (parsers are provided by Nix, so don't auto-install)
+      require("nvim-treesitter.configs").setup({
         auto_install = false,
         sync_install = false,
-        -- do NOT set ensure_installed = "all" or a list you don't ship;
-        -- either omit it or keep it empty (Nix provides the parsers):
-        ensure_installed = {},
+        ensure_installed = {}, -- keep empty; Nix provides parsers
         highlight = { enable = true },
-        indent = { enable = true },
+        indent    = { enable = true },
         incremental_selection = { enable = true },
-        textobjects = { enable = true },
-        ensure_installed = { "lua", "vim", "vimdoc", "markdown", "markdown_inline", "c" },
+        textobjects = {
+          select = { enable = true },
+          move   = { enable = true },
+        },
       })
+      -- Never try to fetch via git at runtime
+      require("nvim-treesitter.install").prefer_git = false
 
-      -- (optional) also make sure the installer never tries Git
-      require("nvim-treesitter.withAllGrammars.install").prefer_git = false
+      -- Treesitter context
+      require("treesitter-context").setup({})
 
       -- Lualine
       require("lualine").setup({ options = { theme = "auto" } })
@@ -160,10 +159,12 @@ in
       }
 
       for _, s in ipairs(servers) do
-        lspconfig[s].setup({ capabilities = capabilities })
+        if lspconfig[s] then
+          lspconfig[s].setup({ capabilities = capabilities })
+        end
       end
 
-      -- Make Lua language server not complain about vim globals
+      -- Lua LS: don't warn about global `vim`
       lspconfig.lua_ls.setup({
         capabilities = capabilities,
         settings = {
