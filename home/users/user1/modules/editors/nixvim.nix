@@ -175,20 +175,22 @@
     plugins."nvim-tmux-navigation".enable = true;
 
     # ---------- FORMAT / DIAGNOSTICS (null-ls / none-ls) ----------
+    plugins."none-ls".enable = true;
+
     #plugins.none-ls = {
-    plugins."none-ls" = {
-      enable = true;
-      sources.formatting = {
-        stylua.enable = true;
-        shfmt.enable = true;
-        prettier.enable = true;   # swap to prettierd if preferred
-      };
-      sources.diagnostics = {
-        eslint_d.enable = true;
-        # rubocop.enable = true;   # requires gem
-        # erb_lint.enable = true;  # requires gem
-      };
-    };
+    #plugins."none-ls" = {
+    #  enable = true;
+    #  sources.formatting = {
+    #    stylua.enable = true;
+    #    shfmt.enable = true;
+    #    prettier.enable = true;   # swap to prettierd if preferred
+    #  };
+    #  sources.diagnostics = {
+    #    eslint_d.enable = true;
+    #    # rubocop.enable = true;   # requires gem
+    #    # erb_lint.enable = true;  # requires gem
+    #  };
+    #};
 
     # Swagger preview (plugin via extraPlugins)
     extraConfigLuaPost = ''
@@ -250,8 +252,38 @@
            }),
       	})
       end
-    end
 
+        -- none-ls / null-ls: formatters & diagnostics
+      do
+        local ok, null_ls = pcall(require, "null-ls")  -- module name is still 'null-ls'
+        if ok then
+          local has = function(bin) return vim.fn.executable(bin) == 1 end
+          local fmt = null_ls.builtins.formatting
+          local diag = null_ls.builtins.diagnostics
+          local actions = null_ls.builtins.code_actions
+
+          local sources = {}
+
+          -- formatters
+          if has("stylua")   then table.insert(sources, fmt.stylua) end
+          if has("shfmt")    then table.insert(sources, fmt.shfmt) end
+          if has("prettierd") then
+            table.insert(sources, fmt.prettierd)
+          elseif has("prettier") then
+            table.insert(sources, fmt.prettier)
+      end
+
+      -- linters / diagnostics
+      if has("eslint_d") then
+        table.insert(sources, diag.eslint_d)
+        table.insert(sources, actions.eslint_d)
+      end
+      # If you install Ruby tools later:
+      # if has("rubocop")  then table.insert(sources, diag.rubocop); table.insert(sources, fmt.rubocop) end
+      # if has("erb_lint") then table.insert(sources, diag.erb_lint) end
+
+      null_ls.setup({ sources = sources })
+    end
     '';
   };
 
