@@ -1,9 +1,16 @@
-# overlays/dockerls.nix
-self: super: {
+# maps to the available package on your channel so that
+# pkgs.dockerfile-language-server exists during evaluation.
+final: prev:
+let
+  candidate =
+    if prev ? dockerfile-language-server-nodejs then
+      prev.dockerfile-language-server-nodejs
+    else if prev ? nodePackages && prev.nodePackages ? dockerfile-language-server-nodejs then
+      prev.nodePackages.dockerfile-language-server-nodejs
+    else
+      null;
+in {
   dockerfile-language-server =
-    if (super ? nodePackages) && (super.nodePackages ? dockerfile-language-server-nodejs)
-    then super.nodePackages.dockerfile-language-server-nodejs
-    else if (super ? nodePackages_latest) && (super.nodePackages_latest ? dockerfile-language-server-nodejs)
-    then super.nodePackages_latest.dockerfile-language-server-nodejs
-    else null; # still OK: nixvim only needs the attribute to exist during docs eval
+    if candidate != null then candidate
+    else throw "No dockerfile-language-server(-nodejs) found in your nixpkgs (25.05).";
 }

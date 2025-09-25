@@ -34,12 +34,12 @@
 
   ];
   
-  #nixpkgs.overlays = [
-  #  (import ./overlays/dockerls.nix)
-  #];
+  nixpkgs.overlays = [
+    (import ./overlays/dockerls.nix)
+  ];
 
-  #home-manager.useGlobalPkgs = true;
-  #home-manager.useUserPackages = true;
+  home-manager.useGlobalPkgs = true;
+  home-manager.useUserPackages = true;
 
   # lock in state to avoid surprising migrations
   system.stateVersion = "25.05";

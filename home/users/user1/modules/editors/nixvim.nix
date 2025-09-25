@@ -3,11 +3,16 @@
   programs.nixvim = {
     enable = true;
 
+    #lsp.servers.dockerls = {
+    #  enable = true;
+    #  package = pkgs.dockerfile-language-server-nodejs;
+    #};
     lsp.servers.dockerls = {
       enable = true;
-      package = pkgs.dockerfile-language-server-nodejs;
+      # use the 25.05 package name:
+      package = pkgs.nodePackages."dockerfile-language-server-nodejs"
+        or pkgs."dockerfile-language-server-nodejs";
     };
-
     # ---------- COLORS / UI ----------
     colorschemes.catppuccin = {
       enable = true;
