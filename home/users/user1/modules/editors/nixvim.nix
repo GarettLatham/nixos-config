@@ -315,6 +315,7 @@
     nodePackages.eslint_d
 
     ruby
-    (nerdfonts.override { fonts = [ "FiraCode" ]; })
+    #(nerdfonts.override { fonts = [ "FiraCode" ]; })
+    nerd-fonts.fira-code
   ];
 }
