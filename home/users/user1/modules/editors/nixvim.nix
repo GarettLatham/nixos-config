@@ -47,10 +47,10 @@ in
       v.telescope-nvim
 
       # Treesitter
-      #v.nvim-treesitter
-      v.nvim-treesitter-textobjects
-      v.nvim-treesitter-context
-      v.nvim-treesitter.withAllGrammars
+      #v.nvim-treesitter.withAllGrammars
+      v.nvim-treesitter.withAllGrammars-textobjects
+      v.nvim-treesitter.withAllGrammars-context
+      v.nvim-treesitter.withAllGrammars.withAllGrammars
       # Which-key
       v.which-key-nvim
 
@@ -80,13 +80,21 @@ in
       vim.keymap.set("n", "<leader>fg", "<cmd>Telescope live_grep<cr>")
 
       -- Treesitter
-      require("nvim-treesitter.configs").setup({
+      require("nvim-treesitter.withAllGrammars.configs").setup({
+        auto_install = false,
+        sync_install = false,
+        -- do NOT set ensure_installed = "all" or a list you don't ship;
+        -- either omit it or keep it empty (Nix provides the parsers):
+        ensure_installed = {},
         highlight = { enable = true },
         indent = { enable = true },
         incremental_selection = { enable = true },
         textobjects = { enable = true },
         ensure_installed = { "lua", "vim", "vimdoc", "markdown", "markdown_inline", "c" },
       })
+
+      -- (optional) also make sure the installer never tries Git
+      require("nvim-treesitter.withAllGrammars.install").prefer_git = false
 
       -- Lualine
       require("lualine").setup({ options = { theme = "auto" } })
