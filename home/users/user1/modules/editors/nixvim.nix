@@ -189,6 +189,7 @@
         html.enable = true;
         cssls.enable = true;
         jsonls.enable = true;
+        dockerls.enable = true;
         bashls.enable = true;
         yamlls.enable = true;
         nil_ls.enable = true;
@@ -339,6 +340,7 @@
     lua-language-server
     typescript-language-server
     vscode-langservers-extracted
+    nodePackages.dockerfile-language-server-nodejs
     bash-language-server
     yaml-language-server
     nil
