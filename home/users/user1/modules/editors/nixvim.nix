@@ -1,60 +1,104 @@
 { pkgs, ... }:
 {
-  programs.neovim = {
+  programs.nixvim = {
     enable = true;
-    viAlias = true;
-    vimAlias = true;
 
-    # Pick a few core plugins (adjust to taste)
-    plugins = with pkgs.vimPlugins; [
-      nvim-lspconfig
-      nvim-treesitter
-      plenary-nvim
-      telescope-nvim
-      nvim-web-devicons
-      # theme:
-      catppuccin-nvim
-      # completion stack (optional):
-      nvim-cmp cmp-nvim-lsp cmp-buffer cmp-path luasnip cmp_luasnip
+    # ---------- UI / Colors ----------
+    colorschemes.catppuccin = {
+      enable = true;
+      settings.flavour = "mocha";
+    };
+
+    plugins.alpha = {
+      enable = true;
+      theme = "startify";
+    };
+
+    # ---------- Treesitter ----------
+    plugins.treesitter = {
+      enable = true;
+      settings = {
+        highlight.enable = true;
+        indent.enable = true;
+        ensure_installed = [ "lua" "vim" "vimdoc" "markdown" "markdown_inline" "c" ];
+      };
+    };
+
+    # ---------- Telescope ----------
+    plugins.telescope = {
+      enable = true;
+      extensions.ui-select.enable = true;
+      keymaps = {
+        "<C-p>" = "git_files";
+        "<leader>fg" = "live_grep";
+        "<leader><leader>" = "buffers";
+        "<leader>ff" = "find_files";
+      };
+      settings.defaults.mappings.i = { "<C-u>" = false; "<C-d>" = false; };
+    };
+
+    # ---------- Completion / Snippets ----------
+    plugins.cmp = {
+      enable = true;
+      autoEnableSources = true;
+      sources = [
+        { name = "nvim_lsp"; }
+        { name = "path"; }
+        { name = "buffer"; }
+        { name = "luasnip"; }
+      ];
+      mapping = {
+        "<CR>" = "cmp.mapping.confirm({ select = true })";
+        "<C-Space>" = "cmp.mapping.complete()";
+        "<C-e>" = "cmp.mapping.abort()";
+        "<Tab>" = ''
+          function(fallback)
+            if cmp.visible() then
+              cmp.select_next_item()
+            elseif luasnip.expand_or_jumpable() then
+              luasnip.expand_or_jump()
+            else
+              fallback()
+            end
+          end
+        '';
+        "<S-Tab>" = ''
+          function(fallback)
+            if cmp.visible() then
+              cmp.select_prev_item()
+            elseif luasnip.jumpable(-1) then
+              luasnip.jump(-1)
+            else
+              fallback()
+            end
+          end
+        '';
+      };
+    };
+
+    plugins.luasnip = {
+      enable = true;
+      fromVscode = [ ]; # add vscode-style snippet packs if you want
+    };
+
+    # ---------- LSP (no dockerls) ----------
+    plugins.lsp = {
+      enable = true;
+      # You can add language servers here later (e.g., lua_ls, pyright, etc.).
+    };
+
+    # ---------- Quality of life ----------
+    globals.mapleader = " ";
+    opts = {
+      number = true;
+      relativenumber = true;
+      termguicolors = true;
+      clipboard = "unnamedplus";
+    };
+    keymaps = [
+      # Quick file tree / placeholder (replace with your favorite)
+      { mode = "n"; key = "<leader>w"; action = ":w<CR>"; options.desc = "Save"; }
+      { mode = "n"; key = "<leader>q"; action = ":q<CR>"; options.desc = "Quit"; }
     ];
-
-    extraLuaConfig = ''
-      vim.cmd.colorscheme('catppuccin')
-      -- treesitter basics
-      require('nvim-treesitter.configs').setup {
-        highlight = { enable = true },
-        indent = { enable = true }
-      }
-      -- lsp minimal (NO dockerls here)
-      local lsp = require('lspconfig')
-      -- Example: enable a couple servers you actually want available
-      -- (they won’t start unless the binaries are installed)
-      local caps = require('cmp_nvim_lsp').default_capabilities()
-      local servers = { 'bashls', 'lua_ls', 'rust_analyzer' }  -- edit list
-      for _, s in ipairs(servers) do
-        if lsp[s] then lsp[s].setup { capabilities = caps } end
-      end
-
-      -- nvim-cmp minimal
-      local cmp = require('cmp')
-      local luasnip = require('luasnip')
-      cmp.setup {
-        snippet = { expand = function(args) luasnip.lsp_expand(args.body) end },
-        mapping = cmp.mapping.preset.insert({
-          ['<CR>'] = cmp.mapping.confirm({ select = true }),
-        }),
-        sources = cmp.config.sources({
-          { name = 'nvim_lsp' }, { name = 'buffer' }, { name = 'path' },
-        }),
-      }
-    '';
   };
-
-  # Install any LSP binaries you actually use (NOT dockerls)
-  home.packages = with pkgs; [
-    rust-analyzer
-    lua-language-server
-    nodePackages.bash-language-server
-    # add others you use; do NOT add dockerfile-language-server*
-  ];
 }
