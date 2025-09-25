@@ -34,7 +34,7 @@
 
   ];
   
-  nixpkgs.overlays = (config.nixpkgs.overlays or []) ++ [
+  nixpkgs.overlays = [
     (import /etc/nixos/overlays/dockerls.nix)
   ];
 
