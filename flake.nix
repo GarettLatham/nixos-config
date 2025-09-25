@@ -26,6 +26,8 @@
           home-manager.useGlobalPkgs = true;
           home-manager.useUserPackages = true;
           home-manager.users.user1 = import ./home/users/user1/home.nix;
+          # NEW: auto-backup any pre-existing files HM would overwrite
+          home-manager.backupFileExtension = "hm-bak"
         }
       ];
     };
