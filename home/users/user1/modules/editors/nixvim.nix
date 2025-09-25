@@ -7,7 +7,7 @@
     #plugins.catppuccin = {
     colorschemes.catppuccin = {
       enable = true;
-      flavour = "mocha";
+      settings.flavour = "mocha";
     };
 
     plugins.alpha = {
@@ -28,7 +28,7 @@
       oil-nvim
       nvim-web-devicons
       vim-fugitive
-      swagger-preview-nvim
+      #swagger-preview-nvim
       friendly-snippets
       cmp-nvim-lsp
       cmp_luasnip
@@ -113,27 +113,60 @@
     #};
 
     # ---------- TREESITTER ----------
+    #plugins.treesitter = {
+    #  enable = true;
+    #  folding = true;
+    #  indent = true;
+    #  nixGrammars = true;
+    #  ensureInstalled = [
+    #    "bash" "c" "cpp" "css" "diff" "git_config" "gitcommit" "git_rebase" "gitattributes"
+    #    "go" "gomod" "html" "javascript" "json" "lua" "luadoc" "luap" "markdown"
+    #    "markdown_inline" "nix" "python" "query" "regex" "ruby" "rust" "toml" "tsx"
+    #    "typescript" "vim" "vimdoc" "yaml"
+    #  ];
+    #  settings = {
+    #    highlight = { enable = true; additional_vim_regex_highlighting = false; };
+    #    incremental_selection = {
+    #      enable = true;
+    #      keymaps = {
+    #        init_selection = "<CR>";
+    #        node_incremental = "<CR>";
+    #        scope_incremental = "<S-CR>";
+    #        node_decremental = "<BS>";
+    #      };
+    #    };
+    #  };
+    #};
+
     plugins.treesitter = {
       enable = true;
       folding = true;
-      indent = true;
       nixGrammars = true;
-      ensureInstalled = [
-        "bash" "c" "cpp" "css" "diff" "git_config" "gitcommit" "git_rebase" "gitattributes"
-        "go" "gomod" "html" "javascript" "json" "lua" "luadoc" "luap" "markdown"
-        "markdown_inline" "nix" "python" "query" "regex" "ruby" "rust" "toml" "tsx"
-        "typescript" "vim" "vimdoc" "yaml"
-      ];
+
       settings = {
-        highlight = { enable = true; additional_vim_regex_highlighting = false; };
-        incremental_selection = {
-          enable = true;
-          keymaps = {
-            init_selection = "<CR>";
-            node_incremental = "<CR>";
-            scope_incremental = "<S-CR>";
-            node_decremental = "<BS>";
-          };
+        indent.enable = true;
+
+        ensure_installed = [
+          "bash" "c" "cpp" "css" "diff"
+          "git_config" "gitcommit" "git_rebase" "gitattributes"
+          "go" "gomod"
+          "html" "javascript" "json"
+          "lua" "luadoc" "luap"
+          "markdown" "markdown_inline"
+          "nix" "python" "query" "regex"
+          "ruby" "rust" "toml" "tsx" "typescript"
+          "vim" "vimdoc" "yaml"
+        ];
+
+        highlight.enable = true;
+        highlight.additional_vim_regex_highlighting = false;
+
+        incremental_selection.enable = true;
+        incremental_selection.keymaps = {
+          init_selection = "<CR>";
+          node_incremental = "<CR>";
+          scope_incremental = "<S-CR>";
+          node_decremental = "<BS>";
         };
       };
     };
@@ -151,7 +184,7 @@
       };
       servers = {
         lua_ls.enable = true;
-        tsserver.enable = true;
+        ts_ls.enable = true;
         html.enable = true;
         cssls.enable = true;
         jsonls.enable = true;
@@ -177,6 +210,8 @@
 
     # ---------- FORMAT / DIAGNOSTICS (null-ls / none-ls) ----------
     plugins."none-ls".enable = true;
+
+    plugins.web-devicons.enable = true;
 
     #plugins.none-ls = {
     #plugins."none-ls" = {
@@ -308,6 +343,7 @@
     nil
     clang-tools
     rust-analyzer
+    rustc cargo
 
     stylua
     shfmt
