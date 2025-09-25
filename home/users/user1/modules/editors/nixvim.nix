@@ -4,7 +4,8 @@
     enable = true;
 
     # ---------- COLORS / UI ----------
-    plugins.catppuccin = {
+    #plugins.catppuccin = {
+    colorschemes.catppuccin = {
       enable = true;
       flavour = "mocha";
     };
@@ -15,7 +16,8 @@
     };
 
     # ---------- EDITING / NAV ----------
-    plugins.neo-tree = {
+    #plugins.neo-tree = {
+    plugins."neo-tree" = {
       enable = true;
       filesystem.followCurrentFile.enabled = true;
       window = { width = 32; };
@@ -163,13 +165,16 @@
     plugins.gitsigns.enable = true;
 
     # ---------- TESTING ----------
-    plugins.vim-test.enable = true;
+    #plugins.vim-test.enable = true;
+    plugins."vim-test".enable = true;
 
     # ---------- tmux navigation ----------
-    plugins.nvim-tmux-navigation.enable = true;
+    #plugins.nvim-tmux-navigation.enable = true;
+    plugins."nvim-tmux-navigation".enable = true;
 
     # ---------- FORMAT / DIAGNOSTICS (null-ls / none-ls) ----------
-    plugins.none-ls = {
+    #plugins.none-ls = {
+    plugins."none-ls" = {
       enable = true;
       sources.formatting = {
         stylua.enable = true;
