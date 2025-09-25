@@ -43,6 +43,7 @@ in
       v.catppuccin-nvim
       v.lualine-nvim
       v.gitsigns-nvim
+      v.diffview-nvim
       v.comment-nvim
       v.nvim-tree-lua
       v.nvim-ts-autotag
@@ -114,6 +115,8 @@ in
 
       -- Gitsigns
       require("gitsigns").setup()
+      vim.keymap.set("n", "<leader>gd", "<cmd>DiffviewOpen<cr>")
+      vim.keymap.set("n", "<leader>gq", "<cmd>DiffviewClose<cr>")
 
       -- Comment
       require("Comment").setup()
