@@ -132,7 +132,7 @@ in
       local luasnip = require("luasnip")
       require("luasnip.loaders.from_vscode").lazy_load()
 
-      #File explorer
+      -- File explorer
       require("neo-tree").setup({})
       vim.keymap.set("n", "<leader>e", "<cmd>Neotree toggle<cr>")
 
