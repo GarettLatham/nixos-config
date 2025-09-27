@@ -78,6 +78,9 @@ in
       v.neo-tree-nvim
       v.nui-nvim
 
+      v.project-nvim
+      v.auto-session
+      v.session-lens
     ];
 
     extraLuaConfig = ''
@@ -90,6 +93,45 @@ in
       telescope.setup({})
       vim.keymap.set("n", "<leader>ff", "<cmd>Telescope find_files<cr>")
       vim.keymap.set("n", "<leader>fg", "<cmd>Telescope live_grep<cr>")
+      -- Projects (ahmedkhalf/project.nvim)
+      require("project_nvim").setup({
+        detection_methods = { "lsp", "pattern" },
+        patterns = { ".git", "package.json", "pyproject.toml", "flake.nix", "Cargo.toml", ".hg" },
+        exclude_dirs = { "~/.local/*", "/nix/store/*" },
+        show_hidden = true,
+        silent_chdir = true,
+      })
+      -- Telescope integration for projects
+      require("telescope").load_extension("projects")
+      vim.keymap.set("n", "<leader>pp", function() require("telescope").extensions.projects.projects{} end,
+        { desc = "Project picker" })
+
+      -- Sessions (rmagatti/auto-session)
+      require("auto-session").setup({
+        auto_restore_enabled = true,   -- restore session when entering a project dir
+        auto_save_enabled = true,      -- save on leave
+        suppressed_dirs = { "~/" },    -- don’t create sessions in $HOME root
+        log_level = "error",
+      })
+      -- Handy session mappings
+      vim.keymap.set("n", "<leader>ss", "<cmd>SessionSave<cr>",     { desc = "Session save" })
+      vim.keymap.set("n", "<leader>sr", "<cmd>SessionRestore<cr>",  { desc = "Session restore" })
+      vim.keymap.set("n", "<leader>sd", "<cmd>SessionDelete<cr>",   { desc = "Session delete" })
+
+      -- Session picker (rmagatti/session-lens) integrates with auto-session
+      require("session-lens").setup({
+        -- nice default; keeps paths readable
+        path_display = { "shorten" },
+      })
+      require("telescope").load_extension("session_lens")
+
+      -- Pick/search sessions with Telescope
+      vim.keymap.set(
+        "n",
+        "<leader>ps",
+        function() require("telescope").extensions.session_lens.search_session() end,
+        { desc = "Session picker (Telescope)" }
+      )
 
       -- Treesitter (parsers are provided by Nix, so don't auto-install)
       require("nvim-treesitter.configs").setup({
