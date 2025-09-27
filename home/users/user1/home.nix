@@ -17,8 +17,10 @@
   programs.zsh = {
     enable = true;
     enableCompletion = true;
-    autosuggestions.enable = true;
-    syntaxHighlighting.enable = true;
+    #autosuggestions.enable = true;
+    #syntaxHighlighting.enable = true;
+    enableAutosuggestions = true;
+    enableSyntaxHighlighting = true;
   };
 
   # Git (edit name/email if you want them set here)
@@ -41,7 +43,7 @@
 
     # Ruby provider
     ruby
-    rubyPackages.neovim
+    #rubyPackages.neovim
 
     # Perl (provider is optional; this gives you `perl`)
     perl
