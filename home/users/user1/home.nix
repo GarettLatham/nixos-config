@@ -7,7 +7,7 @@
 
   # Pull in our Neovim module
   imports = [
-    ./modules/editors/nvim.nix
+    ./modules/editors/nixvim.nix
   ];
 
   # XDG base dirs (helps keep $HOME tidy)
