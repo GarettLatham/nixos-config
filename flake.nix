@@ -10,7 +10,7 @@
 
     # nixvim module so HM can configure Neovim declaratively
     nixvim.url = "github:nix-community/nixvim";
-    nixvim.inputs.nixpkgs.follows = "nixpkgs";
+    #nixvim.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs = { self, nixpkgs, home-manager, nixvim, ... }:
@@ -35,7 +35,8 @@
           home-manager.users.user1 = { pkgs, ... }: {
             # Pull in nixvim’s HM module and your HM config
             imports = [
-              nixvim.homeManagerModules.nixvim
+              #nixvim.homeManagerModules.nixvim
+              nixvim.homeModules.nixvim
               ./home/users/user1/home.nix
             ];
           };
